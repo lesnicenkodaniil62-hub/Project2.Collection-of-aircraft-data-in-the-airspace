@@ -8,7 +8,7 @@
 
 1. Клонируйте репозиторий:
 ```
-git clone 
+git clone https://github.com/lesnicenkodaniil62-hub/Project2.Collection-of-aircraft-data-in-the-airspace
 ```
 2. Установите зависимости:
 ```
