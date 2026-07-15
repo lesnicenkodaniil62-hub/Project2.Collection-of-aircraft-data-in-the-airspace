@@ -22,11 +22,11 @@ class OpenSkyAPI(BaseAPI):
     OPENSKY_URL: str = "https://opensky-network.org/api"
 
     def __init__(
-            self,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
-            timeout: int = 15,
-            user_agent: str = "AeroplanesApp/1.0"
+        self,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        timeout: int = 15,
+        user_agent: str = "AeroplanesApp/1.0",
     ) -> None:
         """
         Инициализация клиента OpenSky.
@@ -55,10 +55,7 @@ class OpenSkyAPI(BaseAPI):
         Returns:
             None
         """
-        logger.warning(
-            "OpenSkyAPI не поддерживает геокодинг. "
-            "Для получения координат используйте NominatimAPI."
-        )
+        logger.warning("OpenSkyAPI не поддерживает геокодинг. " "Для получения координат используйте NominatimAPI.")
         return None
 
     def get_all_states(self) -> List[Dict[str, Any]]:
@@ -127,9 +124,23 @@ class OpenSkyAPI(BaseAPI):
 
         # Индексы полей согласно официальной документации OpenSky
         keys: List[str] = [
-            "icao24", "callsign", "origin_country", "time_position", "last_contact",
-            "longitude", "latitude", "baro_altitude", "on_ground", "velocity",
-            "heading", "vertical_rate", "sensors", "geo_altitude", "squawk", "spi", "position_source"
+            "icao24",
+            "callsign",
+            "origin_country",
+            "time_position",
+            "last_contact",
+            "longitude",
+            "latitude",
+            "baro_altitude",
+            "on_ground",
+            "velocity",
+            "heading",
+            "vertical_rate",
+            "sensors",
+            "geo_altitude",
+            "squawk",
+            "spi",
+            "position_source",
         ]
 
         parsed: List[Dict[str, Any]] = []

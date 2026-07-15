@@ -37,10 +37,7 @@ class BaseAPI(ABC):
         logger.info(f"Инициализирован API-клиент: {self.__class__.__name__} ({self.base_url})")
 
     def _make_request(
-            self,
-            endpoint: str,
-            params: Optional[Dict[str, Any]] = None,
-            method: str = "GET"
+        self, endpoint: str, params: Optional[Dict[str, Any]] = None, method: str = "GET"
     ) -> Optional[Dict[str, Any] | List[Any]]:
         """
         Вспомогательный метод для выполнения HTTP-запроса.
@@ -57,10 +54,7 @@ class BaseAPI(ABC):
         try:
             logger.debug(f"Запрос: {method} {url}, params={params}")
             response: requests.Response = self.session.request(
-                method=method,
-                url=url,
-                params=params,
-                timeout=self.timeout
+                method=method, url=url, params=params, timeout=self.timeout
             )
             response.raise_for_status()
             return response.json()

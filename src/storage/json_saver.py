@@ -5,7 +5,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from src.models.aeroplane import Aeroplane
 from src.storage.base import BaseStorage
@@ -32,14 +32,11 @@ class JSONSaver(BaseStorage):
     }
     """
 
-    def __init__(self, filepath: str = "/data/aeroplanes.json") -> None:
+    def __init__(self) -> None:
         """
         Инициализация JSON-хранилища.
-
-        Args:
-            filepath: Путь к JSON-файлу
         """
-        self.filepath: Path = Path(filepath)
+        self.filepath: Path = Path("data/aeroplanes.json")
         self._data: Dict[str, List[Dict[str, Any]]] = {"aeroplanes": []}
 
         # Загружаем существующие данные, если файл есть
@@ -79,10 +76,7 @@ class JSONSaver(BaseStorage):
         if self.exists(aeroplane.callsign):
             logger.warning(f"Самолёт {aeroplane.callsign} уже существует, обновление данных")
             # Обновляем существующую запись
-            self._data["aeroplanes"] = [
-                a for a in self._data["aeroplanes"]
-                if a["callsign"] != aeroplane.callsign
-            ]
+            self._data["aeroplanes"] = [a for a in self._data["aeroplanes"] if a["callsign"] != aeroplane.callsign]
 
         self._data["aeroplanes"].append(aeroplane.to_dict())
         self._save_to_file()
@@ -173,10 +167,7 @@ class JSONSaver(BaseStorage):
     def delete_aeroplane(self, callsign: str) -> bool:
         """Удалить самолёт по позывному."""
         initial_count = len(self._data["aeroplanes"])
-        self._data["aeroplanes"] = [
-            a for a in self._data["aeroplanes"]
-            if a["callsign"] != callsign
-        ]
+        self._data["aeroplanes"] = [a for a in self._data["aeroplanes"] if a["callsign"] != callsign]
 
         deleted = len(self._data["aeroplanes"]) < initial_count
         if deleted:
@@ -201,10 +192,7 @@ class JSONSaver(BaseStorage):
                 continue
 
         initial_count = len(self._data["aeroplanes"])
-        self._data["aeroplanes"] = [
-            a for a in self._data["aeroplanes"]
-            if a["callsign"] not in to_delete
-        ]
+        self._data["aeroplanes"] = [a for a in self._data["aeroplanes"] if a["callsign"] not in to_delete]
 
         deleted_count = initial_count - len(self._data["aeroplanes"])
         if deleted_count > 0:
@@ -225,10 +213,7 @@ class JSONSaver(BaseStorage):
 
     def exists(self, callsign: str) -> bool:
         """Проверить, существует ли самолёт с указанным позывным."""
-        return any(
-            a["callsign"] == callsign
-            for a in self._data["aeroplanes"]
-        )
+        return any(a["callsign"] == callsign for a in self._data["aeroplanes"])
 
     def __repr__(self) -> str:
         return f"<JSONSaver(filepath={self.filepath}, count={self.count()})>"
