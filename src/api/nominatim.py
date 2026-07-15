@@ -26,11 +26,7 @@ class NominatimAPI(BaseAPI):
 
     NOMINATIM_URL: str = "https://nominatim.openstreetmap.org"
 
-    def __init__(
-            self,
-            timeout: int = 10,
-            user_agent: str = "AeroplanesApp/1.0 (educational-project)"
-    ) -> None:
+    def __init__(self, timeout: int = 10, user_agent: str = "AeroplanesApp/1.0 (educational-project)") -> None:
         """
         Инициализация клиента Nominatim.
 
@@ -38,11 +34,7 @@ class NominatimAPI(BaseAPI):
             timeout: Таймаут запроса в секундах
             user_agent: User-Agent (Nominatim строго требует валидный UA)
         """
-        super().__init__(
-            base_url=self.NOMINATIM_URL,
-            timeout=timeout,
-            user_agent=user_agent
-        )
+        super().__init__(base_url=self.NOMINATIM_URL, timeout=timeout, user_agent=user_agent)
         logger.info(f"NominatimAPI инициализирован: {self.NOMINATIM_URL}")
 
     def get_coordinates(self, country_name: str) -> Optional[Tuple[float, float]]:
@@ -80,18 +72,13 @@ class NominatimAPI(BaseAPI):
             latitude: float = float(result["lat"])
             longitude: float = float(result["lon"])
             display_name: str = result.get("display_name", country_name)
-            logger.info(
-                f"Найдены координаты для '{display_name}': "
-                f"({latitude}, {longitude})"
-            )
+            logger.info(f"Найдены координаты для '{display_name}': " f"({latitude}, {longitude})")
             return latitude, longitude
         except (KeyError, ValueError, TypeError, IndexError) as e:
             logger.error(f"Ошибка парсинга ответа Nominatim: {e}")
             return None
 
-    def get_bounding_box(
-            self, country_name: str
-    ) -> Optional[Tuple[float, float, float, float]]:
+    def get_bounding_box(self, country_name: str) -> Optional[Tuple[float, float, float, float]]:
         """
         Получить ограничивающий прямоугольник страны.
 
@@ -130,10 +117,7 @@ class NominatimAPI(BaseAPI):
             north: float = float(bbox[1])
             west: float = float(bbox[2])
             east: float = float(bbox[3])
-            logger.info(
-                f"Bounding box для '{country_name}': "
-                f"W={west}, E={east}, S={south}, N={north}"
-            )
+            logger.info(f"Bounding box для '{country_name}': " f"W={west}, E={east}, S={south}, N={north}")
             return west, east, south, north
         except (KeyError, ValueError, TypeError, IndexError) as e:
             logger.error(f"Ошибка парсинга bounding box: {e}")

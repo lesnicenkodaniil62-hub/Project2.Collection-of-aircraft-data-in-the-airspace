@@ -4,8 +4,8 @@
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ class Aeroplane:
             "on_ground": self.on_ground,
             "icao24": self.icao24,
             "latitude": round(self.latitude, 6),
-            "longitude": round(self.longitude, 6)
+            "longitude": round(self.longitude, 6),
         }
 
     @classmethod
@@ -193,15 +193,11 @@ class Aeroplane:
             on_ground=bool(data.get("on_ground", False)),
             icao24=str(data.get("icao24", "")),
             latitude=float(data.get("latitude", 0.0)),
-            longitude=float(data.get("longitude", 0.0))
+            longitude=float(data.get("longitude", 0.0)),
         )
 
     @classmethod
-    def cast_to_object_list(
-            cls,
-            states: List[Dict[str, Any]],
-            default_country: str = ""
-    ) -> List["Aeroplane"]:
+    def cast_to_object_list(cls, states: List[Dict[str, Any]], default_country: str = "") -> List["Aeroplane"]:
         """
         Преобразовать список словарей (от API) в список объектов Aeroplane.
 
@@ -240,7 +236,7 @@ class Aeroplane:
                     on_ground=bool(state.get("on_ground", False)),
                     icao24=str(state.get("icao24", "")),
                     latitude=float(state.get("latitude", 0.0) or 0.0),
-                    longitude=float(state.get("longitude", 0.0) or 0.0)
+                    longitude=float(state.get("longitude", 0.0) or 0.0),
                 )
                 aeroplanes.append(aeroplane)
 
@@ -253,10 +249,7 @@ class Aeroplane:
 
     def __str__(self) -> str:
         """Читаемое представление для вывода в консоль."""
-        return (
-            f"✈ {self.callsign:8s} | {self.country:20s} | "
-            f"V={self.velocity:7.2f} м/с | H={self.altitude:8.2f} м"
-        )
+        return f"✈ {self.callsign:8s} | {self.country:20s} | " f"V={self.velocity:7.2f} м/с | H={self.altitude:8.2f} м"
 
     def __repr__(self) -> str:
         """Техническое представление для отладки."""
