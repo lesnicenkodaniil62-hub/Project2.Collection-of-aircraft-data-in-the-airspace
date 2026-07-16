@@ -33,7 +33,9 @@ def user_interaction() -> None:
     # Инициализация API и хранилища
     nominatim_api = NominatimAPI()
     opensky_api = OpenSkyAPI()
-    json_saver = JSONSaver("aeroplanes.json")
+
+    # ИСПРАВЛЕНИЕ: Убран аргумент, так как __init__ у JSONSaver не принимает параметров
+    json_saver = JSONSaver()
 
     all_aeroplanes: List[Aeroplane] = []
 
@@ -57,7 +59,6 @@ def user_interaction() -> None:
         elif choice == "1":
             # Получить самолёты по стране
             country = input("Введите название страны (например, Spain, Germany): ").strip()
-
             if not country:
                 print("Название страны не может быть пустым")
                 continue
@@ -100,111 +101,81 @@ def user_interaction() -> None:
             print(f"Данные сохранены в хранилище (всего: {json_saver.count()})")
 
         elif choice == "2":
-            # Топ N по высоте
             if not all_aeroplanes:
                 print("Нет загруженных данных. Сначала выполните действие 1 или 7")
                 continue
-
             try:
                 n = int(input(f"Введите количество самолётов для топа (1-{len(all_aeroplanes)}): ").strip())
-
                 if n <= 0 or n > len(all_aeroplanes):
                     print(f"Число должно быть в диапазоне от 1 до {len(all_aeroplanes)}")
                     continue
-
                 top_aeroplanes = get_top_aeroplanes(all_aeroplanes, n, by="altitude")
                 print_aeroplanes(top_aeroplanes, title=f"Топ {n} самолётов по высоте")
-
             except ValueError:
                 print("Некорректное число. Введите целое положительное число")
 
         elif choice == "3":
-            # Фильтрация по стране
             if not all_aeroplanes:
                 print("Нет загруженных данных. Сначала выполните действие 1 или 7")
                 continue
-
             countries_input = input("Введите названия стран через запятую (например, Spain, Germany): ").strip()
-
             if not countries_input:
                 print("Список стран не может быть пустым")
                 continue
-
             countries = [c.strip() for c in countries_input.split(",") if c.strip()]
-
             if not countries:
                 print("Некорректный формат списка стран")
                 continue
-
             filtered = filter_aeroplanes(all_aeroplanes, countries=countries)
-
             if not filtered:
                 print(f"Самолёты не найдены для стран: {', '.join(countries)}")
                 continue
-
             print_aeroplanes(filtered, title=f"Самолёты из стран: {', '.join(countries)}")
 
         elif choice == "4":
-            # Фильтрация по диапазону высот
             if not all_aeroplanes:
                 print("Нет загруженных данных. Сначала выполните действие 1 или 7")
                 continue
-
             try:
                 altitude_range = input("Введите диапазон высот (например, 5000-10000): ").strip()
-
                 if "-" not in altitude_range:
                     print("Некорректный формат. Используйте формат: min-max")
                     continue
-
                 parts = altitude_range.split("-")
                 if len(parts) != 2:
                     print("Некорректный формат. Используйте формат: min-max")
                     continue
-
                 min_alt = float(parts[0].strip())
                 max_alt = float(parts[1].strip())
-
                 if min_alt > max_alt:
                     print("Минимальная высота не может быть больше максимальной")
                     continue
-
                 filtered = get_aeroplanes_by_altitude_range(all_aeroplanes, min_alt, max_alt)
-
                 if not filtered:
                     print(f"Самолёты не найдены в диапазоне высот {min_alt}-{max_alt} м")
                     continue
-
                 print_aeroplanes(filtered, title=f"Самолёты на высоте {min_alt}-{max_alt} м")
-
             except ValueError:
                 print("Некорректный формат высот. Введите числа")
 
         elif choice == "5":
-            # Показать все загруженные самолёты
             if not all_aeroplanes:
                 print("Нет загруженных данных. Сначала выполните действие 1 или 7")
                 continue
-
             print_aeroplanes(all_aeroplanes, title="Все загруженные самолёты")
 
         elif choice == "6":
-            # Сохранить в файл
             if not all_aeroplanes:
                 print("Нет данных для сохранения")
                 continue
-
             json_saver.add_aeroplanes(all_aeroplanes)
-            print(f"Данные сохранены в файл 'aeroplanes.json' (всего: {json_saver.count()})")
+            print(f"Данные сохранены в файл (всего: {json_saver.count()})")
 
         elif choice == "7":
-            # Загрузить из файла
             loaded = json_saver.get_all_aeroplanes()
-
             if not loaded:
                 print("Файл пуст или не содержит данных")
                 continue
-
             all_aeroplanes = loaded
             print(f"Загружено {len(loaded)} самолётов из файла")
             print_aeroplanes(all_aeroplanes[:10], title="Первые 10 загруженных самолётов")
