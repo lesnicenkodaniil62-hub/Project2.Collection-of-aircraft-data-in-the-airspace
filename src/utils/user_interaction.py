@@ -1,5 +1,11 @@
 """
 Консольный интерфейс для взаимодействия с пользователем.
+
+Реализует интерактивное меню с улучшенным UX:
+- Диалог выбора режима работы с данными (замена/добавление)
+- Предупреждения о несохранённых данных
+- Статус-бар после каждого действия
+- Система снапшотов для сохранения нескольких версий данных
 """
 
 import logging
@@ -10,7 +16,7 @@ from src.api.opensky import OpenSkyAPI
 from src.models.aeroplane import Aeroplane
 from src.storage.json_saver import JSONSaver
 from src.utils.data_processing import (filter_aeroplanes, get_aeroplanes_by_altitude_range, get_top_aeroplanes,
-                                       print_aeroplanes)
+                                       print_aeroplanes, show_status_bar)
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +26,14 @@ def user_interaction() -> None:
     Основная функция для взаимодействия с пользователем через консоль.
 
     Возможности:
-    1. Ввести название страны для запроса информации о самолетах
-    2. Получить топ N самолетов по высоте полета
-    3. Получить самолеты по стране их регистрации
-    4. Фильтрация по диапазону высот
-    5. Сохранение данных в JSON-файл
+    1. Получить самолёты по стране (с выбором: заменить или добавить)
+    2. Показать топ N самолётов по высоте
+    3. Фильтровать самолёты по стране регистрации
+    4. Фильтровать самолёты по диапазону высот
+    5. Показать все загруженные самолёты
+    6. Сохранить текущие данные в снапшот (отдельный файл)
+    7. Загрузить данные из снапшота (с предупреждением)
+    0. Выход (с проверкой несохранённых данных)
     """
     print("\n" + "=" * 80)
     print(" Добро пожаловать в систему анализа воздушного пространства!")
@@ -33,11 +42,10 @@ def user_interaction() -> None:
     # Инициализация API и хранилища
     nominatim_api = NominatimAPI()
     opensky_api = OpenSkyAPI()
-
-    # ИСПРАВЛЕНИЕ: Убран аргумент, так как __init__ у JSONSaver не принимает параметров
     json_saver = JSONSaver()
 
     all_aeroplanes: List[Aeroplane] = []
+    has_unsaved_changes: bool = False
 
     while True:
         print("\nВыберите действие:")
@@ -46,13 +54,20 @@ def user_interaction() -> None:
         print("3. Фильтровать самолёты по стране регистрации")
         print("4. Фильтровать самолёты по диапазону высот")
         print("5. Показать все загруженные самолёты")
-        print("6. Сохранить текущие данные в файл")
-        print("7. Загрузить данные из файла")
+        print("6. Сохранить текущие данные в снапшот")
+        print("7. Загрузить данные из снапшота")
         print("0. Выход")
 
         choice = input("\nВаш выбор: ").strip()
 
         if choice == "0":
+            # Проверка несохранённых данных при выходе
+            if has_unsaved_changes:
+                confirm = (
+                    input("\n⚠ В памяти есть несохранённые данные. " "Выйти без сохранения? (y/n): ").strip().lower()
+                )
+                if confirm != "y":
+                    continue
             print("\nДо свидания!")
             break
 
@@ -90,35 +105,43 @@ def user_interaction() -> None:
 
             print(f"Успешно создано {len(aeroplanes)} объектов самолётов")
 
-            # Добавляем в общий список
-            all_aeroplanes.extend(aeroplanes)
+            # Диалог: заменить или добавить
+            if all_aeroplanes:
+                print(f"\n⚠ В памяти уже есть {len(all_aeroplanes)} самолётов.")
+                choice_mem = input("Что сделать? (1) Заменить текущие данные " "(2) Добавить к текущим: ").strip()
+                if choice_mem == "1":
+                    all_aeroplanes = aeroplanes
+                    print("✓ Текущие данные заменены новыми")
+                else:
+                    all_aeroplanes.extend(aeroplanes)
+                    print("✓ Новые данные добавлены к текущим")
+            else:
+                all_aeroplanes = aeroplanes
 
-            # Показываем первые 10
+            has_unsaved_changes = True
             print_aeroplanes(aeroplanes[:10], title=f"Первые 10 самолётов из '{country}'")
-
-            # Сохраняем в хранилище
-            json_saver.add_aeroplanes(aeroplanes)
-            print(f"Данные сохранены в хранилище (всего: {json_saver.count()})")
+            show_status_bar(len(all_aeroplanes), json_saver.count())
 
         elif choice == "2":
             if not all_aeroplanes:
                 print("Нет загруженных данных. Сначала выполните действие 1 или 7")
                 continue
             try:
-                n = int(input(f"Введите количество самолётов для топа (1-{len(all_aeroplanes)}): ").strip())
+                n = int(input(f"Введите количество самолётов для топа " f"(1-{len(all_aeroplanes)}): ").strip())
                 if n <= 0 or n > len(all_aeroplanes):
-                    print(f"Число должно быть в диапазоне от 1 до {len(all_aeroplanes)}")
+                    print(f"Число должно быть в диапазоне " f"от 1 до {len(all_aeroplanes)}")
                     continue
                 top_aeroplanes = get_top_aeroplanes(all_aeroplanes, n, by="altitude")
                 print_aeroplanes(top_aeroplanes, title=f"Топ {n} самолётов по высоте")
             except ValueError:
                 print("Некорректное число. Введите целое положительное число")
+            show_status_bar(len(all_aeroplanes), json_saver.count())
 
         elif choice == "3":
             if not all_aeroplanes:
                 print("Нет загруженных данных. Сначала выполните действие 1 или 7")
                 continue
-            countries_input = input("Введите названия стран через запятую (например, Spain, Germany): ").strip()
+            countries_input = input("Введите названия стран через запятую " "(например, Spain, Germany): ").strip()
             if not countries_input:
                 print("Список стран не может быть пустым")
                 continue
@@ -131,6 +154,7 @@ def user_interaction() -> None:
                 print(f"Самолёты не найдены для стран: {', '.join(countries)}")
                 continue
             print_aeroplanes(filtered, title=f"Самолёты из стран: {', '.join(countries)}")
+            show_status_bar(len(all_aeroplanes), json_saver.count())
 
         elif choice == "4":
             if not all_aeroplanes:
@@ -152,40 +176,75 @@ def user_interaction() -> None:
                     continue
                 filtered = get_aeroplanes_by_altitude_range(all_aeroplanes, min_alt, max_alt)
                 if not filtered:
-                    print(f"Самолёты не найдены в диапазоне высот {min_alt}-{max_alt} м")
+                    print(f"Самолёты не найдены в диапазоне " f"высот {min_alt}-{max_alt} м")
                     continue
                 print_aeroplanes(filtered, title=f"Самолёты на высоте {min_alt}-{max_alt} м")
             except ValueError:
                 print("Некорректный формат высот. Введите числа")
+            show_status_bar(len(all_aeroplanes), json_saver.count())
 
         elif choice == "5":
             if not all_aeroplanes:
                 print("Нет загруженных данных. Сначала выполните действие 1 или 7")
                 continue
             print_aeroplanes(all_aeroplanes, title="Все загруженные самолёты")
+            show_status_bar(len(all_aeroplanes), json_saver.count())
 
         elif choice == "6":
             if not all_aeroplanes:
                 print("Нет данных для сохранения")
                 continue
-            json_saver.add_aeroplanes(all_aeroplanes)
-            print(f"Данные сохранены в файл (всего: {json_saver.count()})")
+            snapshot_path = json_saver.save_snapshot(all_aeroplanes)
+            has_unsaved_changes = False
+            print(f"✓ Данные сохранены в снапшот: {snapshot_path.name}")
+            show_status_bar(len(all_aeroplanes), json_saver.count())
 
         elif choice == "7":
-            loaded = json_saver.get_all_aeroplanes()
-            if not loaded:
-                print("Файл пуст или не содержит данных")
+            # Предупреждение о несохранённых данных
+            if has_unsaved_changes:
+                confirm = (
+                    input(
+                        "\n⚠ В памяти есть несохранённые данные. "
+                        "Они будут потеряны при загрузке. Продолжить? (y/n): "
+                    )
+                    .strip()
+                    .lower()
+                )
+                if confirm != "y":
+                    continue
+
+            snapshots = json_saver.list_snapshots()
+            if not snapshots:
+                print("Нет доступных снапшотов. " "Сначала сохраните данные (пункт 6).")
                 continue
-            all_aeroplanes = loaded
-            print(f"Загружено {len(loaded)} самолётов из файла")
-            print_aeroplanes(all_aeroplanes[:10], title="Первые 10 загруженных самолётов")
+
+            print("\nДоступные снапшоты:")
+            for idx, snapshot in enumerate(snapshots, start=1):
+                print(f"  {idx}. {snapshot.name}")
+
+            choice_snap = input("Выберите номер снапшота (0 для отмены): ").strip()
+            try:
+                idx = int(choice_snap)
+                if idx == 0:
+                    continue
+                idx -= 1
+                if 0 <= idx < len(snapshots):
+                    json_saver.load_snapshot(snapshots[idx])
+                    all_aeroplanes = json_saver.get_all_aeroplanes()
+                    has_unsaved_changes = False
+                    print(f"✓ Загружено {len(all_aeroplanes)} " f"самолётов из снапшота")
+                    print_aeroplanes(all_aeroplanes[:10], title="Первые 10 загруженных самолётов")
+                else:
+                    print("Некорректный номер.")
+            except ValueError:
+                print("Некорректный ввод.")
+
+            show_status_bar(len(all_aeroplanes), json_saver.count())
 
         else:
             print("Некорректный выбор. Попробуйте снова")
 
 
 if __name__ == "__main__":
-    # Настройка логирования
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
     user_interaction()

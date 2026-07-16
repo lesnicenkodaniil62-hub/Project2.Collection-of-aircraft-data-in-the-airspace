@@ -8,7 +8,7 @@ import pytest
 
 from src.models.aeroplane import Aeroplane
 from src.utils.data_processing import (filter_aeroplanes, get_aeroplanes_by_altitude_range, get_top_aeroplanes,
-                                       print_aeroplanes, sort_aeroplanes)
+                                       print_aeroplanes, show_status_bar, sort_aeroplanes)
 
 
 @pytest.mark.parametrize(
@@ -65,5 +65,40 @@ def test_print_aeroplanes_empty(capsys: pytest.CaptureFixture[str]) -> None:
     """Тест вывода пустого списка в консоль."""
     print_aeroplanes([], title="Empty Test")
     captured = capsys.readouterr()
-    assert "Empty Test" in captured.out
-    assert "Нет данных для отображения" in captured.out
+    # Регистронезависимая проверка (в выводе будет "EMPTY TEST")
+    output_lower = captured.out.lower()
+    assert "empty test" in output_lower
+    assert "нет данных для отображения" in output_lower
+
+
+def test_print_aeroplanes_with_data(aeroplane_list: List[Aeroplane], capsys: pytest.CaptureFixture[str]) -> None:
+    """Тест вывода списка самолётов с данными."""
+    print_aeroplanes(aeroplane_list, title="Test Planes")
+    captured = capsys.readouterr()
+    output_lower = captured.out.lower()
+    assert "test planes" in output_lower
+    assert "afl100" in output_lower
+    assert "dlh400" in output_lower
+    assert "всего записей: 4" in output_lower
+
+
+def test_show_status_bar(capsys: pytest.CaptureFixture[str]) -> None:
+    """Тест вывода статус-бара."""
+    show_status_bar(80, 120)
+    captured = capsys.readouterr()
+    assert "80" in captured.out
+    assert "120" in captured.out
+    assert "в памяти" in captured.out.lower()
+    assert "в файле" in captured.out.lower()
+
+
+def test_filter_aeroplanes_no_criteria(aeroplane_list: List[Aeroplane]) -> None:
+    """Тест фильтрации без критериев (должна вернуть все записи)."""
+    result = filter_aeroplanes(aeroplane_list)
+    assert len(result) == len(aeroplane_list)
+
+
+def test_filter_aeroplanes_multiple_criteria(aeroplane_list: List[Aeroplane]) -> None:
+    """Тест фильтрации с несколькими критериями одновременно."""
+    result = filter_aeroplanes(aeroplane_list, countries=["Russia"], min_altitude=4000.0, max_altitude=12000.0)
+    assert len(result) == 2  # AFL100 (5000) и SBI777 (11000)
