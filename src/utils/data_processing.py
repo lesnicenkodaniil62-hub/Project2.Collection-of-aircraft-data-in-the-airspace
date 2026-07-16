@@ -1,199 +1,184 @@
 """
-Утилиты для обработки данных о воздушных судах.
-Фильтрация, сортировка, топ N, вывод в консоль.
+Модуль утилит для обработки, фильтрации и отображения данных о самолётах.
+
+Реализует принцип SRP (Single Responsibility Principle): данный модуль отвечает
+исключительно за преобразование и представление коллекций объектов Aeroplane,
+не занимаясь сетевыми запросами или сохранением в файлы.
+
+Все функции являются чистыми (pure functions) или имеют минимальные побочные
+эффекты (например, вывод в консоль), что делает их легко тестируемыми.
 """
 
 import logging
-from typing import List, Optional
+from typing import Any, List
 
 from src.models.aeroplane import Aeroplane
 
 logger = logging.getLogger(__name__)
 
 
-def filter_aeroplanes(
-    aeroplanes: List[Aeroplane],
-    countries: Optional[List[str]] = None,
-    min_altitude: Optional[float] = None,
-    max_altitude: Optional[float] = None,
-    min_velocity: Optional[float] = None,
-    max_velocity: Optional[float] = None,
-    on_ground: Optional[bool] = None,
-) -> List[Aeroplane]:
+def filter_aeroplanes(aeroplanes: List[Aeroplane], **criteria: Any) -> List[Aeroplane]:
     """
-    Фильтрация самолётов по указанным критериям.
+    Фильтрация списка самолётов по заданным критериям.
 
     Args:
-        aeroplanes: Список самолётов для фильтрации
-        countries: Список стран для фильтрации (регистронезависимо)
-        min_altitude: Минимальная высота (м)
-        max_altitude: Максимальная высота (м)
-        min_velocity: Минимальная скорость (м/с)
-        max_velocity: Максимальная скорость (м/с)
-        on_ground: Фильтр по статусу "на земле"
+        aeroplanes: Исходный список объектов Aeroplane для фильтрации.
+        **criteria: Именованные аргументы-критерии. Поддерживаемые ключи:
+            - countries (List[str]): Список допустимых стран.
+            - min_altitude (float): Минимальная высота полёта.
+            - max_altitude (float): Максимальная высота полёта.
+            - min_velocity (float): Минимальная скорость.
+            - max_velocity (float): Максимальная скорость.
+            - on_ground (bool): Фильтр по статусу нахождения на земле.
 
     Returns:
-        Отфильтрованный список самолётов
+        Новый список объектов Aeroplane, удовлетворяющих всем критериям.
     """
-    if not aeroplanes:
-        logger.warning("Пустой список самолётов для фильтрации")
-        return []
-
     result: List[Aeroplane] = []
+    countries_lower: List[str] = [str(c).lower() for c in criteria.get("countries", [])]
 
-    for aeroplane in aeroplanes:
-        # Фильтр по странам
-        if countries:
-            country_match = any(aeroplane.country.lower() == country.lower() for country in countries)
-            if not country_match:
-                continue
-
-        # Фильтр по высоте
-        if min_altitude is not None and aeroplane.altitude < min_altitude:
+    for plane in aeroplanes:
+        if countries_lower and plane.country.lower() not in countries_lower:
             continue
-        if max_altitude is not None and aeroplane.altitude > max_altitude:
+        if "min_altitude" in criteria and plane.altitude < float(criteria["min_altitude"]):
             continue
-
-        # Фильтр по скорости
-        if min_velocity is not None and aeroplane.velocity < min_velocity:
+        if "max_altitude" in criteria and plane.altitude > float(criteria["max_altitude"]):
             continue
-        if max_velocity is not None and aeroplane.velocity > max_velocity:
+        if "min_velocity" in criteria and plane.velocity < float(criteria["min_velocity"]):
             continue
-
-        # Фильтр по статусу "на земле"
-        if on_ground is not None and aeroplane.on_ground != on_ground:
+        if "max_velocity" in criteria and plane.velocity > float(criteria["max_velocity"]):
             continue
+        if "on_ground" in criteria and plane.on_ground != bool(criteria["on_ground"]):
+            continue
+        result.append(plane)
 
-        result.append(aeroplane)
-
-    logger.info(f"Фильтрация: из {len(aeroplanes)} осталось {len(result)} самолётов")
+    logger.debug(f"Фильтрация: из {len(aeroplanes)} отобрано {len(result)} " f"по критериям {criteria}")
     return result
 
 
-def sort_aeroplanes(aeroplanes: List[Aeroplane], by: str = "altitude", reverse: bool = True) -> List[Aeroplane]:
+def _get_sort_key(plane: Aeroplane, attribute: str) -> Any:
     """
-    Сортировка самолётов по указанному полю.
+    Внутренняя вспомогательная функция для получения значения атрибута.
 
     Args:
-        aeroplanes: Список самолётов для сортировки
-        by: Поле для сортировки ("altitude", "velocity", "callsign", "country")
-        reverse: True для сортировки по убыванию (DESC), False для возрастания (ASC)
+        plane: Объект Aeroplane.
+        attribute: Имя атрибута для извлечения.
 
     Returns:
-        Отсортированный список самолётов
+        Значение атрибута или 0, если атрибут не существует.
     """
-    if not aeroplanes:
-        logger.warning("Пустой список самолётов для сортировки")
-        return []
+    return getattr(plane, attribute, 0)
 
-    valid_fields = {"altitude", "velocity", "callsign", "country"}
-    if by not in valid_fields:
-        logger.error(f"Некорректное поле для сортировки: {by}. Допустимые: {valid_fields}")
-        raise ValueError(f"Некорректное поле для сортировки: {by}")
 
-    sorted_list = sorted(aeroplanes, key=lambda a: getattr(a, by), reverse=reverse)
+def sort_aeroplanes(aeroplanes: List[Aeroplane], by: str = "altitude", reverse: bool = False) -> List[Aeroplane]:
+    """
+    Сортировка списка самолётов по заданному атрибуту.
 
-    order = "DESC" if reverse else "ASC"
-    logger.info(f"Сортировка по {by} ({order}): {len(sorted_list)} самолётов")
-    return sorted_list
+    Args:
+        aeroplanes: Исходный список объектов Aeroplane.
+        by: Имя атрибута для сортировки. По умолчанию "altitude".
+        reverse: Если True, сортирует по убыванию.
+
+    Returns:
+        Новый отсортированный список объектов Aeroplane.
+    """
+    logger.debug(f"Сортировка {len(aeroplanes)} самолётов по полю '{by}', " f"reverse={reverse}")
+
+    def key_func(plane: Aeroplane) -> Any:
+        return _get_sort_key(plane, by)
+
+    return sorted(aeroplanes, key=key_func, reverse=reverse)
 
 
 def get_top_aeroplanes(aeroplanes: List[Aeroplane], n: int, by: str = "altitude") -> List[Aeroplane]:
     """
-    Получить топ N самолётов по указанному полю.
+    Получение топ-N самолётов по заданному параметру.
 
     Args:
-        aeroplanes: Список самолётов
-        n: Количество самолётов для вывода
-        by: Поле для сортировки (по умолчанию "altitude")
+        aeroplanes: Исходный список объектов Aeroplane.
+        n: Количество возвращаемых элементов.
+        by: Атрибут для сортировки.
 
     Returns:
-        Топ N самолётов
+        Список из максимум N объектов, отсортированных по убыванию.
     """
-    if not aeroplanes:
-        logger.warning("Пустой список самолётов для получения топа")
-        return []
-
-    if n <= 0:
-        logger.error(f"Некорректное значение N: {n}")
-        raise ValueError(f"N должно быть положительным числом, получено: {n}")
-
-    # Сортируем по убыванию (DESC) для получения топа
-    sorted_list = sort_aeroplanes(aeroplanes, by=by, reverse=True)
-    top_n = sorted_list[:n]
-
-    logger.info(f"Топ {n} по {by}: получено {len(top_n)} самолётов")
-    return top_n
+    sorted_planes: List[Aeroplane] = sort_aeroplanes(aeroplanes, by=by, reverse=True)
+    return sorted_planes[:n]
 
 
-def get_aeroplanes_by_altitude_range(
-    aeroplanes: List[Aeroplane], min_altitude: float, max_altitude: float
-) -> List[Aeroplane]:
+def get_aeroplanes_by_altitude_range(aeroplanes: List[Aeroplane], min_alt: float, max_alt: float) -> List[Aeroplane]:
     """
-    Получить самолёты в указанном диапазоне высот.
+    Удобная обёртка для фильтрации самолётов по диапазону высот.
 
     Args:
-        aeroplanes: Список самолётов
-        min_altitude: Минимальная высота (м)
-        max_altitude: Максимальная высота (м)
+        aeroplanes: Исходный список объектов Aeroplane.
+        min_alt: Минимальная граница высоты (в метрах).
+        max_alt: Максимальная граница высоты (в метрах).
 
     Returns:
-        Список самолётов в диапазоне высот
+        Список самолётов в заданном диапазоне высот.
     """
-    if min_altitude > max_altitude:
-        logger.error(f"Некорректный диапазон высот: {min_altitude} > {max_altitude}")
-        raise ValueError(f"min_altitude ({min_altitude}) не может быть больше max_altitude ({max_altitude})")
-
-    return filter_aeroplanes(aeroplanes, min_altitude=min_altitude, max_altitude=max_altitude)
+    return filter_aeroplanes(aeroplanes, min_altitude=min_alt, max_altitude=max_alt)
 
 
-def print_aeroplanes(aeroplanes: List[Aeroplane], title: str = "Самолёты", show_index: bool = True) -> None:
+def print_aeroplanes(aeroplanes: List[Aeroplane], title: str = "Самолёты") -> None:
     """
-    Вывести список самолётов в консоль в читаемом формате.
+    Форматированный вывод списка самолётов в консоль.
 
     Args:
-        aeroplanes: Список самолётов для вывода
-        title: Заголовок таблицы
-        show_index: Показывать ли порядковые номера
+        aeroplanes: Список объектов Aeroplane для вывода.
+        title: Заголовок секции вывода.
     """
+    separator = "═" * 100
+    divider = "─" * 100
+
+    print("\n" + separator)
+    print(f"  {title.upper()}")
+    print(separator)
+
     if not aeroplanes:
-        print(f"\n{title}: нет данных для отображения\n")
-        return
-
-    print(f"\n{'=' * 80}")
-    print(f" {title} (всего: {len(aeroplanes)})")
-    print(f"{'=' * 80}")
-
-    # Заголовок таблицы
-    if show_index:
-        print(
-            f"{'№':>3} | {'Позывной':<8} | {'Страна':<20} | {'Скорость (м/с)':>14} | {'Высота (м)':>12} | {'На земле':>8}"
-        )
-        print(f"{'-' * 3}-+-{'-' * 8}-+-{'-' * 20}-+-{'-' * 14}-+-{'-' * 12}-+-{'-' * 8}")
+        print("  ⚠ Нет данных для отображения по заданным критериям.")
     else:
-        print(f"{'Позывной':<8} | {'Страна':<20} | {'Скорость (м/с)':>14} | {'Высота (м)':>12} | {'На земле':>8}")
-        print(f"{'-' * 8}-+-{'-' * 20}-+-{'-' * 14}-+-{'-' * 12}-+-{'-' * 8}")
+        header = (
+            f"  {'№':<4} │ "
+            f"{'Позывной':<10} │ "
+            f"{'Страна':<20} │ "
+            f"{'Скорость (м/с)':<15} │ "
+            f"{'Высота (м)':<12} │ "
+            f"{'Статус':<10}"
+        )
+        print(header)
+        print(divider)
 
-    # Данные
-    for idx, aeroplane in enumerate(aeroplanes, start=1):
-        on_ground_str = "Да" if aeroplane.on_ground else "Нет"
-
-        if show_index:
-            print(
-                f"{idx:>3} | "
-                f"{aeroplane.callsign:<8} | "
-                f"{aeroplane.country:<20} | "
-                f"{aeroplane.velocity:>14.2f} | "
-                f"{aeroplane.altitude:>12.2f} | "
-                f"{on_ground_str:>8}"
+        for idx, plane in enumerate(aeroplanes, start=1):
+            status = "На земле" if plane.on_ground else "В воздухе"
+            row = (
+                f"  {idx:<4} │ "
+                f"{plane.callsign:<10} │ "
+                f"{plane.country:<20} │ "
+                f"{plane.velocity:<15.2f} │ "
+                f"{plane.altitude:<12.2f} │ "
+                f"{status:<10}"
             )
-        else:
-            print(
-                f"{aeroplane.callsign:<8} | "
-                f"{aeroplane.country:<20} | "
-                f"{aeroplane.velocity:>14.2f} | "
-                f"{aeroplane.altitude:>12.2f} | "
-                f"{on_ground_str:>8}"
-            )
+            print(row)
 
-    print(f"{'=' * 80}\n")
+        print(divider)
+        print(f"  Всего записей: {len(aeroplanes)}")
+
+    print(separator + "\n")
+
+
+def show_status_bar(memory_count: int, file_count: int) -> None:
+    """
+    Вывод статус-бара с информацией о количестве самолётов.
+
+    Отображает текущее состояние системы: сколько самолётов загружено
+    в оперативную память и сколько сохранено в рабочем файле. Это помогает
+    пользователю понимать, какие данные будут использованы при операциях
+    фильтрации, сортировки и сохранения.
+
+    Args:
+        memory_count: Количество самолётов в оперативной памяти.
+        file_count: Количество самолётов в рабочем файле.
+    """
+    print(f"\n  📊 Статус: В памяти: {memory_count} | В файле: {file_count}")

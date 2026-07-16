@@ -5,7 +5,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import requests
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class BaseAPI(ABC):
     """
-    Абстрактный базовый класс для API-клиентов.
+     Абстрактный базовый класс для API-клиентов.
 
     Все классы-наследники обязаны реализовать методы получения данных
     из конкретных источников (Nominatim, OpenSky и т.д.).
@@ -29,6 +29,7 @@ class BaseAPI(ABC):
             timeout: Таймаут запроса в секундах
             user_agent: User-Agent для запросов
         """
+
         self.base_url: str = base_url.rstrip("/")
         self.timeout: int = timeout
         self.user_agent: str = user_agent
@@ -50,6 +51,7 @@ class BaseAPI(ABC):
         Returns:
             JSON-ответ или None при ошибке
         """
+
         url: str = f"{self.base_url}/{endpoint.lstrip('/')}"
         try:
             logger.debug(f"Запрос: {method} {url}, params={params}")
@@ -57,7 +59,7 @@ class BaseAPI(ABC):
                 method=method, url=url, params=params, timeout=self.timeout
             )
             response.raise_for_status()
-            return response.json()
+            return cast(Optional[Dict[str, Any] | List[Any]], response.json())
         except requests.exceptions.Timeout:
             logger.error(f"Таймаут запроса к {url}")
             return None
@@ -95,6 +97,7 @@ class BaseAPI(ABC):
         Returns:
             Список словарей с данными о самолётах
         """
+
         pass
 
     @abstractmethod
