@@ -2,6 +2,6 @@
 Пакет моделей данных проекта.
 """
 
-from src.models.aeroplane import Aeroplane
+from .aeroplane import Aeroplane
 
 __all__ = ["Aeroplane"]
